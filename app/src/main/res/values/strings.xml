@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mi Scanner Enhanced</string>
+    <string name="xposed_description">Bypass the content censorship in Xiaomi Scanner that blocks scan results by sending them to a remote server for review. Also skip the location permission requirement for WiFi QR code connections.</string>
+    <string-array name="xposed_scope">
+        <item>com.xiaomi.scanner</item>
+    </string-array>
+</resources>

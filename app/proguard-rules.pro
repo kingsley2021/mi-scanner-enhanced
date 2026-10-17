@@ -1,0 +1,3 @@
+-dontwarn io.github.libxposed.**
+-adaptresourcefilecontents META-INF/xposed/java_init.list
+-keep class io.github.lcebot.miscannerenhanced.MainHook { *; }
