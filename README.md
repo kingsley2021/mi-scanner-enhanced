@@ -14,6 +14,12 @@ An LSPosed module that fixes several annoyances in Xiaomi Scanner.
 
 **Warning dialog before opening URLs.** Scanning a web URL shows a security warning dialog that requires confirmation before the URL can be opened. This module skips the dialog and opens the URL directly.
 
+**Scan content uploaded to Xiaomi.** On Chinese builds, the app Base64-encodes the content of scanned codes and posts it to a Xiaomi server. This module drops the upload.
+
+**Links diverted to Alipay by legacy health code rules.** The scanner still carries pandemic-era health code patterns, and several of them match entire government domains, so ordinary links on those sites open in Alipay instead of the browser. This module disables those rules so such links follow the normal URL flow.
+
+**Some scan results silently discarded.** Market links (`market://`), WeChat Pay codes (`wxp:`) and Paytm codes that no app claims produce no result at all. This module shows them as text so they can at least be read and copied.
+
 ## Installation
 
 1. Download the APK from the [Releases](../../releases) page and install it.

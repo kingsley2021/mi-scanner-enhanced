@@ -39,6 +39,75 @@ class MainHook : XposedModule() {
         hookCensorship(cl)
         hookUrlWarningDialog(cl)
         hookLocationPermission(cl)
+        hookScanContentUpload(cl)
+        hookHealthCodeListener(cl)
+        hookUnhandledResultTypes(cl)
+    }
+
+    private fun findDeclared(cls: Class<*>, name: String, vararg params: Class<*>): Method? =
+        cls.declaredMethods.firstOrNull { it.name == name && it.parameterTypes.contentEquals(params) }
+
+    private fun hookScanContentUpload(cl: ClassLoader) {
+        try {
+            val target = findDeclared(cl.loadClass("com.xiaomi.scanner.util.HttpUtils"), "setRecordCodeFeatures",
+                Int::class.javaPrimitiveType!!, String::class.java, String::class.java)
+            if (target == null) {
+                log("Could not find setRecordCodeFeatures")
+                return
+            }
+            hook(target).setId("upload").setExceptionMode(ExceptionMode.PROTECTIVE)
+                .intercept { null }
+            log("Hooked setRecordCodeFeatures to drop scan content upload")
+        } catch (t: Throwable) {
+            log("Scan content upload hook failed", t)
+        }
+    }
+
+    // Several patterns match entire government domains, so ordinary links get diverted to Alipay.
+    private fun hookHealthCodeListener(cl: ClassLoader) {
+        try {
+            val target = findDeclared(cl.loadClass("com.xiaomi.scanner.module.code.utils.HealthCodeListener"), "handleBarcode",
+                String::class.java, cl.loadClass("com.xiaomi.scanner.module.code.codec.QRCodeType"))
+            if (target == null) {
+                log("Could not find HealthCodeListener.handleBarcode")
+                return
+            }
+            hook(target).setId("healthcode").setExceptionMode(ExceptionMode.PROTECTIVE)
+                .intercept { java.lang.Boolean.FALSE }
+            log("Hooked HealthCodeListener.handleBarcode to pass through")
+        } catch (t: Throwable) {
+            log("Health code listener hook failed", t)
+        }
+    }
+
+    // processingResults has no branch for these types and shows nothing, so route them to the text dialog.
+    private fun hookUnhandledResultTypes(cl: ClassLoader) {
+        try {
+            val util = cl.loadClass("com.xiaomi.scanner.app.utils.CodeResultUtil")
+            val typeClass = cl.loadClass("com.xiaomi.scanner.module.code.codec.QRCodeType")
+            val target = findDeclared(util, "processingResults",
+                String::class.java, typeClass, Int::class.javaPrimitiveType!!, String::class.java)
+            if (target == null) {
+                log("Could not find processingResults")
+                return
+            }
+            val text = typeClass.enumConstants!!.first { (it as Enum<*>).name == "TEXT" }
+            val unhandled = setOf("MARKET", "PAYTM", "WECHATPAY")
+            hook(target).setId("unhandled").setExceptionMode(ExceptionMode.PROTECTIVE)
+                .intercept { chain ->
+                    val type = chain.getArg(1) as? Enum<*>
+                    if (type != null && type.name in unhandled) {
+                        val args = chain.getArgs().toTypedArray()
+                        args[1] = text
+                        chain.proceed(args)
+                    } else {
+                        chain.proceed()
+                    }
+                }
+            log("Hooked processingResults to show unhandled types as text")
+        } catch (t: Throwable) {
+            log("Unhandled result type hook failed", t)
+        }
     }
 
     private fun hookCensorship(cl: ClassLoader) {
