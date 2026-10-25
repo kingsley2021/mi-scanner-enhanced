@@ -10,6 +10,8 @@ An LSPosed module that fixes two annoyances in Xiaomi Scanner.
 
 **Location permission required for WiFi QR codes.** The app requires location permission before connecting to a WiFi network from a scanned QR code. The actual connection does not need it. This module skips the location check while leaving other permissions like camera untouched.
 
+**FIDO QR codes not handled.** The scanner classifies FIDO cross-device authentication QR codes (`FIDO:/...`) as plain text and sends them through content review, which blocks or hides the result. The scanner does contain FIDO handling code, but it is hardcoded to a single Xiaomi package (`com.fido.asm`) and is unreachable from the text classification path. This module intercepts `FIDO:` URIs in the text result flow and dispatches them as a standard `org.fidoalliance.intent.QRCodeAuthenticator` intent without a package restriction, so any registered FIDO authenticator (Google Password Manager, 1Password, Xiaomi's own handler, etc.) can respond.
+
 ## Installation
 
 1. Download the APK from the [Releases](../../releases) page and install it.

@@ -1,5 +1,9 @@
 package io.github.lcebot.miscannerenhanced
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import io.github.libxposed.api.XposedInterface.ExceptionMode
 import io.github.libxposed.api.XposedModule
@@ -57,6 +61,11 @@ class MainHook : XposedModule() {
                 .intercept { chain ->
                     try {
                         val text = chain.getArg(0) as? String ?: return@intercept null
+                        if (text.startsWith("FIDO:", ignoreCase = true)
+                            && launchFidoIntent(chain.getThisObject(), text)
+                        ) {
+                            return@intercept null
+                        }
                         show.invoke(chain.getThisObject(), text)
                     } catch (t: Throwable) {
                         log("showUI fallback to proceed", t)
@@ -64,10 +73,33 @@ class MainHook : XposedModule() {
                     }
                     null
                 }
-            log("Hooked checkContent -> showUI")
+            log("Hooked checkContent -> showUI (with FIDO support)")
         } catch (t: Throwable) {
             log("Censorship hook failed", t)
         }
+    }
+
+    private fun launchFidoIntent(activityInstance: Any, uri: String): Boolean {
+        val ctx = activityInstance as? Context ?: return false
+        try {
+            val intent = Intent("org.fidoalliance.intent.QRCodeAuthenticator")
+            intent.data = Uri.parse(uri)
+            ctx.startActivity(intent)
+            log("Launched FIDO intent via QRCodeAuthenticator action")
+            (activityInstance as? Activity)?.finish()
+            return true
+        } catch (t: Throwable) {
+            log("QRCodeAuthenticator action not handled", t)
+        }
+        try {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+            log("Launched FIDO intent via ACTION_VIEW fallback")
+            (activityInstance as? Activity)?.finish()
+            return true
+        } catch (t: Throwable) {
+            log("ACTION_VIEW fallback failed", t)
+        }
+        return false
     }
 
     private fun hookLocationPermission(cl: ClassLoader) {
