@@ -37,6 +37,7 @@ class MainHook : XposedModule() {
 
         val cl = param.defaultClassLoader
         hookCensorship(cl)
+        hookUrlWarningDialog(cl)
         hookLocationPermission(cl)
     }
 
@@ -100,6 +101,31 @@ class MainHook : XposedModule() {
             log("ACTION_VIEW fallback failed", t)
         }
         return false
+    }
+
+    private fun hookUrlWarningDialog(cl: ClassLoader) {
+        try {
+            val scanUtils = cl.loadClass("com.xiaomi.scanner.util.ScanUtils")
+            var target: Method? = null
+            for (m in scanUtils.declaredMethods) {
+                if (m.name == "isUrlInWhitelist"
+                    && m.parameterCount == 1
+                    && m.parameterTypes[0] == String::class.java
+                ) {
+                    target = m
+                    break
+                }
+            }
+            if (target == null) {
+                log("Could not find isUrlInWhitelist")
+                return
+            }
+            hook(target).setId("urlwhitelist").setExceptionMode(ExceptionMode.PROTECTIVE)
+                .intercept { java.lang.Boolean.TRUE }
+            log("Hooked isUrlInWhitelist to skip URL warning dialog")
+        } catch (t: Throwable) {
+            log("URL warning dialog hook failed", t)
+        }
     }
 
     private fun hookLocationPermission(cl: ClassLoader) {
